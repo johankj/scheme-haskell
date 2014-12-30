@@ -17,10 +17,6 @@ data LispVal = Atom String
              | Bool Bool
              deriving(Show)
 
--- A parser for symbols in Scheme
-symbol :: Parser Char
-symbol = oneOf "+-*/$!#%&:^|<>=?@_~"
-
 -- A parser for whitespace
 -- Skips 1 or more spaces
 spaces :: Parser ()
@@ -43,6 +39,10 @@ nonEscapeChars = noneOf "\n\r\t\\\""
 escapeChars :: Parser Char
 escapeChars = oneOf "\n\r\t\\\""
 
+-- A parser for symbols in Scheme
+symbol :: Parser Char
+symbol = oneOf "+-*/$!%&:^|<>=?@_~"
+
 -- A parser for atoms
 -- Atoms are: <letter>|<symbol> (<letter>|<symbol>|<digit>)*
 parseAtom :: Parser LispVal
@@ -50,10 +50,12 @@ parseAtom = do
              first <- letter <|> symbol
              rest <- many (letter <|> digit <|> symbol)
              let atom = first : rest
-             return $ case atom of
-                        "#t" -> Bool True
-                        "#f" -> Bool False
-                        _    -> Atom atom
+             return $ Atom atom
+
+parseBool :: Parser LispVal
+parseBool = do
+    char '#'
+    (char 't' >> return (Bool True)) <|> (char 'f' >> return (Bool False))
 
 -- A parser for Scheme numbers
 -- parseNumber with support for binary, octal, decimal and hexadecimal
@@ -67,7 +69,7 @@ parseDecimal = many1 digit >>= return . Number . read
 -- E.g.: #x10yz -> (Number 16)
 parseNumberWithRadixPrefix :: Parser LispVal
 parseNumberWithRadixPrefix = do
-    bs  <- char '#' >> oneOf "bodx"
+    bs <- char '#' >> oneOf "bodx"
     case bs of
         'b' -> parseBin
         'o' -> parseOctal
@@ -76,16 +78,16 @@ parseNumberWithRadixPrefix = do
         where
           parseBin :: Parser LispVal
           parseBin = do
-            num <-  many1 (oneOf "01")
+            num <- many1 (oneOf "01")
             let readBin = readInt 2 (`elem` "01") digitToInt
             return $ (Number . fst . head . readBin) num
           parseOctal :: Parser LispVal
           parseOctal = do
-            num <-  many1 octDigit
+            num <- many1 octDigit
             return $ (Number . fst . head . readOct) num
           parseHex :: Parser LispVal
           parseHex = do
-            num <-  many1 hexDigit
+            num <- many1 hexDigit
             return $ (Number . fst . head . readHex) num
 
 -- A parser for Scheme Expressions
@@ -93,6 +95,7 @@ parseExpr :: Parser LispVal
 parseExpr = parseAtom
          <|> parseString
          <|> parseNumber
+         <|> parseBool
 
 readExpr :: String -> String
 readExpr input = case parse parseExpr "lisp" input of
