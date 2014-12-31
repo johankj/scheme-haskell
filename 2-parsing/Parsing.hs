@@ -1,7 +1,7 @@
 module Parsing where
 
 import Text.ParserCombinators.Parsec hiding (spaces)
-import Data.Char (digitToInt)
+import Data.Char
 import System.Environment
 import Control.Monad
 import Numeric
@@ -15,6 +15,7 @@ data LispVal = Atom String
              | Number Integer
              | String String
              | Bool Bool
+             | Character Char
              deriving(Show)
 
 -- A parser for whitespace
@@ -53,7 +54,7 @@ parseAtom = do
              return $ Atom atom
 
 parseBool :: Parser LispVal
-parseBool = do
+parseBool = try $ do
     char '#'
     (char 't' >> return (Bool True)) <|> (char 'f' >> return (Bool False))
 
@@ -69,7 +70,7 @@ parseDecimal = many1 digit >>= return . Number . read
 -- E.g.: #x10yz -> (Number 16)
 parseNumberWithRadixPrefix :: Parser LispVal
 parseNumberWithRadixPrefix = do
-    bs <- char '#' >> oneOf "bodx"
+    bs <- try $ char '#' >> oneOf "bodx"
     case bs of
         'b' -> parseBin
         'o' -> parseOctal
@@ -90,12 +91,33 @@ parseNumberWithRadixPrefix = do
             num <- many1 hexDigit
             return $ (Number . fst . head . readHex) num
 
+-- parse a char or a char-name
+parseChar :: Parser LispVal
+parseChar = parseCharName <|> parseCharacter
+
+-- parse a char-name (space/newline)
+parseCharName :: Parser LispVal
+parseCharName = try $ do
+        string "#\\"
+        x <- string "space" <|> string "newline"
+        return $ case x of
+                   "space"  -> Character ' '
+                   "newline"-> Character '\n'
+
+-- parse a character (letter/digit/symbol)
+parseCharacter :: Parser LispVal
+parseCharacter = do
+        try $ string "#\\"
+        (letter <|> digit <|> symbol) >>= return . Character
+
+
 -- A parser for Scheme Expressions
 parseExpr :: Parser LispVal
 parseExpr = parseAtom
          <|> parseString
          <|> parseNumber
          <|> parseBool
+         <|> parseChar
 
 readExpr :: String -> String
 readExpr input = case parse parseExpr "lisp" input of
