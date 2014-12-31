@@ -13,6 +13,7 @@ data LispVal = Atom String
              | List [LispVal]
              | DottedList [LispVal] LispVal
              | Number Integer
+             | Float Float
              | String String
              | Bool Bool
              | Character Char
@@ -91,6 +92,14 @@ parseNumberWithRadixPrefix = do
             num <- many1 hexDigit
             return $ (Number . fst . head . readHex) num
 
+-- parse float as per R5RS
+parseFloat :: Parser LispVal
+parseFloat = try $ do
+             decimal <- many1 digit
+             char '.'
+             fraction <- many1 digit
+             return $ Float . read $ decimal ++ "." ++ fraction
+
 -- parse a char or a char-name
 parseChar :: Parser LispVal
 parseChar = parseCharName <|> parseCharacter
@@ -115,6 +124,7 @@ parseCharacter = do
 parseExpr :: Parser LispVal
 parseExpr = parseAtom
          <|> parseString
+         <|> parseFloat
          <|> parseNumber
          <|> parseBool
          <|> parseChar
