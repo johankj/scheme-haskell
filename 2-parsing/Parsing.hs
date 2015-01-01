@@ -1,11 +1,10 @@
 module Parsing where
 
-import Text.ParserCombinators.Parsec hiding (spaces)
 import Data.Char
-import System.Environment
 import Control.Monad
-import Numeric
-
+import System.Environment
+import Numeric (readInt, readHex, readOct)
+import Text.ParserCombinators.Parsec hiding (spaces)
 
 -- The data in the program
 -- It can be any Lisp value
