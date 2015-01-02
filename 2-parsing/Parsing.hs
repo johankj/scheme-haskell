@@ -1,6 +1,7 @@
 module Parsing where
 
 import Data.Char
+import Data.Ratio (Rational (..), (%))
 import Control.Monad
 import System.Environment
 import Numeric (readInt, readHex, readOct)
@@ -12,6 +13,7 @@ data LispVal = Atom String
              | List [LispVal]
              | DottedList [LispVal] LispVal
              | Number Integer
+             | Ratio Rational
              | Float Float
              | String String
              | Bool Bool
@@ -57,6 +59,14 @@ parseBool :: Parser LispVal
 parseBool = try $ do
     char '#'
     (char 't' >> return (Bool True)) <|> (char 'f' >> return (Bool False))
+
+-- Parse ratios, e.g. 5/4
+parseRatio :: Parser LispVal
+parseRatio = try $ do
+    x <- many1 digit
+    char '/'
+    y <- many1 digit
+    return $ Ratio ((read x) % (read y))
 
 -- A parser for Scheme numbers
 -- parseNumber with support for binary, octal, decimal and hexadecimal
@@ -124,6 +134,7 @@ parseExpr :: Parser LispVal
 parseExpr = parseAtom
          <|> parseString
          <|> parseFloat
+         <|> parseRatio
          <|> parseNumber
          <|> parseBool
          <|> parseChar
