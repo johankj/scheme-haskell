@@ -2,6 +2,7 @@ module Parsing where
 
 import Data.Char
 import Data.Ratio (Rational (..), (%))
+import Data.Complex (Complex (..))
 import Control.Monad
 import System.Environment
 import Numeric (readInt, readHex, readOct)
@@ -14,7 +15,8 @@ data LispVal = Atom String
              | DottedList [LispVal] LispVal
              | Number Integer
              | Ratio Rational
-             | Float Float
+             | Complex (Complex Double)
+             | Float Double
              | String String
              | Bool Bool
              | Character Char
@@ -67,6 +69,17 @@ parseRatio = try $ do
     char '/'
     y <- many1 digit
     return $ Ratio ((read x) % (read y))
+
+-- Parse complex numbers, e.g. 3+2i
+parseComplex :: Parser LispVal
+parseComplex = try $ do
+    a <- fmap toDouble (parseFloat <|> parseDecimal)
+    char '+'
+    b <- fmap toDouble (parseFloat <|> parseDecimal)
+    char 'i'
+    return $ Complex (a :+ b)
+    where toDouble (Float x) = x
+          toDouble (Number x) = fromIntegral x
 
 -- A parser for Scheme numbers
 -- parseNumber with support for binary, octal, decimal and hexadecimal
@@ -133,6 +146,7 @@ parseCharacter = do
 parseExpr :: Parser LispVal
 parseExpr = parseAtom
          <|> parseString
+         <|> parseComplex
          <|> parseFloat
          <|> parseRatio
          <|> parseNumber

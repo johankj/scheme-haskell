@@ -5,7 +5,7 @@
 
 module Ex6 where
 
-import Parsing (hiding parseFloat)
+import Parsing hiding (parseFloat)
 import Text.ParserCombinators.Parsec
 
 -- parse float as per R5RS

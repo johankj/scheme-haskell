@@ -9,7 +9,8 @@
 
 module Ex7 where
 
-import Parsing
+import Parsing hiding (parseRatio, parseComplex)
+import Data.Complex (Complex (..))
 import Data.Ratio (Rational (..), (%))
 import Text.ParserCombinators.Parsec
 
@@ -21,4 +22,16 @@ parseRatio = try $ do
     char '/'
     denom <- many1 digit
     return $ Ratio ((read num) % (read denom))
+
+-- Parse complex numbers, e.g. 3+2i
+-- Remember to add Complex to LispVal
+parseComplex :: Parser LispVal
+parseComplex = try $ do
+    a <- fmap toDouble (parseFloat <|> parseDecimal)
+    char '+'
+    b <- fmap toDouble (parseFloat <|> parseDecimal)
+    char 'i'
+    return $ Complex (a :+ b)
+    where toDouble (Float x) = x
+          toDouble (Number x) = fromIntegral x
 
