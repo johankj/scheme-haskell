@@ -30,10 +30,10 @@ spaces = skipMany1 space
 -- A parser for Scheme strings
 parseString :: Parser LispVal
 parseString = do
-               char '"'
-               x <- many (nonEscapeChars) <|> many (escapeChars)
-               char '"'
-               return $ String x
+    char '"'
+    x <- many (nonEscapeChars) <|> many (escapeChars)
+    char '"'
+    return $ String x
 
 -- A parser for non-escaped characters
 nonEscapeChars :: Parser Char
@@ -52,10 +52,10 @@ symbol = oneOf "+-*/$!%&:^|<>=?@_~"
 -- Atoms are: <letter>|<symbol> (<letter>|<symbol>|<digit>)*
 parseAtom :: Parser LispVal
 parseAtom = do
-             first <- letter <|> symbol
-             rest <- many (letter <|> digit <|> symbol)
-             let atom = first : rest
-             return $ Atom atom
+    first <- letter <|> symbol
+    rest <- many (letter <|> digit <|> symbol)
+    let atom = first : rest
+    return $ Atom atom
 
 -- A Scheme list is either a normal list or a dotted list
 parseList :: Parser LispVal
@@ -114,32 +114,32 @@ parseNumberWithRadixPrefix :: Parser LispVal
 parseNumberWithRadixPrefix = do
     bs <- try $ char '#' >> oneOf "bodx"
     case bs of
-        'b' -> parseBin
-        'o' -> parseOctal
-        'd' -> parseDecimal
-        'x' -> parseHex
-        where
-          parseBin :: Parser LispVal
-          parseBin = do
-            num <- many1 (oneOf "01")
-            let readBin = readInt 2 (`elem` "01") digitToInt
-            return $ (Number . fst . head . readBin) num
-          parseOctal :: Parser LispVal
-          parseOctal = do
-            num <- many1 octDigit
-            return $ (Number . fst . head . readOct) num
-          parseHex :: Parser LispVal
-          parseHex = do
-            num <- many1 hexDigit
-            return $ (Number . fst . head . readHex) num
+      'b' -> parseBin
+      'o' -> parseOctal
+      'd' -> parseDecimal
+      'x' -> parseHex
+      where
+        parseBin :: Parser LispVal
+        parseBin = do
+          num <- many1 (oneOf "01")
+          let readBin = readInt 2 (`elem` "01") digitToInt
+          return $ (Number . fst . head . readBin) num
+        parseOctal :: Parser LispVal
+        parseOctal = do
+          num <- many1 octDigit
+          return $ (Number . fst . head . readOct) num
+        parseHex :: Parser LispVal
+        parseHex = do
+          num <- many1 hexDigit
+          return $ (Number . fst . head . readHex) num
 
 -- parse float as per R5RS
 parseFloat :: Parser LispVal
 parseFloat = try $ do
-             decimal <- many1 digit
-             char '.'
-             fraction <- many1 digit
-             return $ Float . read $ decimal ++ "." ++ fraction
+    decimal <- many1 digit
+    char '.'
+    fraction <- many1 digit
+    return $ Float . read $ decimal ++ "." ++ fraction
 
 -- parse a char or a char-name
 parseChar :: Parser LispVal
@@ -148,17 +148,17 @@ parseChar = parseCharName <|> parseCharacter
 -- parse a char-name (space/newline)
 parseCharName :: Parser LispVal
 parseCharName = try $ do
-        string "#\\"
-        x <- string "space" <|> string "newline"
-        return $ case x of
-                   "space"  -> Character ' '
-                   "newline"-> Character '\n'
+    string "#\\"
+    x <- string "space" <|> string "newline"
+    return $ case x of
+               "space"  -> Character ' '
+               "newline"-> Character '\n'
 
 -- parse a character (letter/digit/symbol)
 parseCharacter :: Parser LispVal
 parseCharacter = do
-        try $ string "#\\"
-        (letter <|> digit <|> symbol) >>= return . Character
+    try $ string "#\\"
+    (letter <|> digit <|> symbol) >>= return . Character
 
 
 -- A parser for Scheme Expressions
@@ -174,13 +174,14 @@ parseExpr = parseAtom
          <|> parseList
 
 readExpr :: String -> String
-readExpr input = case parse parseExpr "lisp" input of
+readExpr input =
+    case parse parseExpr "lisp" input of
       Left err -> "No match: " ++ show err
       Right val -> "Found value: " ++ show val
 
 
 main :: IO()
 main = do
-        args <- getArgs
-        putStrLn (readExpr (args !! 0))
+    args <- getArgs
+    putStrLn (readExpr (args !! 0))
 
