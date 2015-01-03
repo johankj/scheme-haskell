@@ -160,6 +160,26 @@ parseCharacter = do
     try $ string "#\\"
     (letter <|> digit <|> symbol) >>= return . Character
 
+-- Parse quoted expressions
+parseQuoted :: Parser LispVal
+parseQuoted = do
+    char '\''
+    x <- parseExpr
+    return $ List [Atom "quote", x]
+
+-- Parse quasi-quotations
+parseQuasiQuoted :: Parser LispVal
+parseQuasiQuoted = do
+    char '`'
+    x <- parseExpr
+    return $ List [Atom "quasiquote", x]
+
+-- Parse unquotes
+parseUnQuote :: Parser LispVal
+parseUnQuote = do
+    char ','
+    x <- parseExpr
+    return $ List [Atom "unquote", x]
 
 -- A parser for Scheme Expressions
 parseExpr :: Parser LispVal
@@ -172,6 +192,9 @@ parseExpr = parseAtom
          <|> parseBool
          <|> parseChar
          <|> parseList
+         <|> parseQuoted
+         <|> parseQuasiQuoted
+         <|> parseUnQuote
 
 readExpr :: String -> String
 readExpr input =
