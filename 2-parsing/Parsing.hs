@@ -57,6 +57,25 @@ parseAtom = do
              let atom = first : rest
              return $ Atom atom
 
+-- A Scheme list is either a normal list or a dotted list
+parseList :: Parser LispVal
+parseList = do
+    char '('
+    x <- parseNormalList <|> parseDottedList
+    char ')'
+    return x
+
+-- Scheme lists are expressions seperated by spaces
+parseNormalList :: Parser LispVal
+parseNormalList = try $ liftM List $ parseExpr `sepBy` spaces
+
+-- Improper/dotted lists are lists which doesn't end with the empty list.
+parseDottedList :: Parser LispVal
+parseDottedList = do
+    head <- parseExpr `endBy` spaces
+    tail <- char '.' >> spaces >> parseExpr
+    return $ DottedList head tail
+
 parseBool :: Parser LispVal
 parseBool = try $ do
     char '#'
@@ -152,6 +171,7 @@ parseExpr = parseAtom
          <|> parseNumber
          <|> parseBool
          <|> parseChar
+         <|> parseList
 
 readExpr :: String -> String
 readExpr input = case parse parseExpr "lisp" input of
