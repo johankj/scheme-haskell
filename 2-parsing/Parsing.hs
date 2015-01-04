@@ -13,6 +13,7 @@ import Text.ParserCombinators.Parsec hiding (spaces)
 data LispVal = Atom String
              | List [LispVal]
              | DottedList [LispVal] LispVal
+             | Vector (Int, [LispVal])
              | Number Integer
              | Ratio Rational
              | Complex (Complex Double)
@@ -181,6 +182,18 @@ parseUnQuote = do
     x <- parseExpr
     return $ List [Atom "unquote", x]
 
+-- Very basic Vector parser
+-- This currently doesn't honor the R5RS:
+--  "occupies less space than a list of the same length, and the average time
+--  required to access a randomly chosen element is typically less for the
+--  vector than for the list."
+parseVector :: Parser LispVal
+parseVector = do
+    try $ string "#("
+    x <- parseExpr `sepBy` spaces
+    char ')'
+    return $ Vector (length x, x)
+
 -- A parser for Scheme Expressions
 parseExpr :: Parser LispVal
 parseExpr = parseAtom
@@ -195,6 +208,7 @@ parseExpr = parseAtom
          <|> parseQuoted
          <|> parseQuasiQuoted
          <|> parseUnQuote
+         <|> parseVector
 
 readExpr :: String -> String
 readExpr input =
