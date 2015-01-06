@@ -34,7 +34,12 @@ primitives = [("+", numericOperator (+)),
               ("/", numericOperator div),
               ("mod", numericOperator mod),
               ("quotient", numericOperator quot),
-              ("remainder", numericOperator rem)]
+              ("remainder", numericOperator rem),
+              ("symbol?", Bool . symbolp . head),
+              ("string?", Bool . stringp . head),
+              ("number?", Bool . numberp . head),
+              ("bool?", Bool . boolp . head),
+              ("list?", Bool . listp . head)]
 
 type Operand = (Integer -> Integer -> Integer)
 
@@ -53,5 +58,28 @@ unpackNumber (String n) = let parsed = reads n :: [(Integer, String)] in
 unpackNumber (List [n]) = unpackNumber n
 unpackNumber _ = 0
 
+
+-- Predicates
+symbolp :: LispVal -> Bool
+symbolp (Atom _) = True
+symbolp _        = False
+
+stringp :: LispVal -> Bool
+stringp (String _) = True
+stringp _          = False
+
+numberp :: LispVal -> Bool
+numberp (Number _) = True
+numberp (Float _)  = True
+numberp _          = False
+
+boolp :: LispVal -> Bool
+boolp (Bool _) = True
+boolp _ = False
+
+listp :: LispVal -> Bool
+listp (List _) = True
+listp (DottedList _ _) = True
+listp _ = False
 
 
