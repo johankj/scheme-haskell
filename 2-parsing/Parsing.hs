@@ -4,6 +4,7 @@ import Data.Char
 import Data.Ratio (Rational (..), (%))
 import Data.Complex (Complex (..))
 import Control.Monad
+import Control.Monad.Error
 import System.Environment
 import Numeric (readInt, readHex, readOct)
 import Text.ParserCombinators.Parsec hiding (spaces)
@@ -22,6 +23,45 @@ data LispVal = Atom String
              | Bool Bool
              | Character Char
              deriving(Show)
+
+-- ErrorTypes
+data LispError = NumArgs Integer [LispVal]
+               | TypeMismatch String LispVal
+               | Parser ParseError
+               | BadSpecialForm String LispVal
+               | NotFunction String String
+               | UnboundVar String String
+               | Default String
+
+showError :: LispError -> String
+showError (UnboundVar message varname)  = message ++ ": " ++ varname
+showError (BadSpecialForm message form) = message ++ ": " ++ show form
+showError (NotFunction message func)    = message ++ ": " ++ show func
+showError (NumArgs expected found)      = "Expected " ++ show expected
+                                       ++ " args; found values " ++ show found
+showError (TypeMismatch expected found) = "Invalid type: expected " ++ expected
+                                       ++ ", found " ++ show found
+showError (Parser parseErr)             = "Parse error at " ++ show parseErr
+instance Show LispError where show = showError
+
+-- Make LispError instance of Error
+-- so it works with GHC's built-in error handling functions
+instance Error LispError where
+    noMsg = Default "An error has occurred"
+    strMsg = Default
+
+-- Curried TypeAlias
+-- e.g. ThrowsError LispVal or ThrowsError String
+type ThrowsError = Either LispError
+
+-- We'll be converting all of our errors to their string representations
+-- and returning that as a normal value.
+trapError action = catchError action (return . show)
+
+extractValue :: ThrowsError a -> a
+extractValue (Right val) = val
+
+
 
 -- A parser for whitespace
 -- Skips 1 or more spaces
@@ -210,9 +250,9 @@ parseExpr = parseAtom
          <|> parseUnQuote
          <|> parseVector
 
-readExpr :: String -> LispVal
+readExpr :: String -> ThrowsError LispVal
 readExpr input =
     case parse parseExpr "lisp" input of
-      Left err -> String $ "No match: " ++ show err
-      Right val -> val
+      Left err -> throwError $ Parser err
+      Right val -> return val
 

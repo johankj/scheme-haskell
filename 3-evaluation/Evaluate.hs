@@ -7,27 +7,34 @@ module Evaluate where
 
 import Parsing
 import System.Environment
+import Control.Monad.Error
 
 main :: IO ()
-main = getArgs >>= print . eval . readExpr . head
+main = do
+    args <- getArgs
+    evaled <- return $ liftM show $ (readExpr (head args) >>= eval)
+    putStrLn $ extractValue $ trapError evaled
 
 
 -- evaluate
-eval :: LispVal -> LispVal
-eval val@(String _) = val
-eval val@(Number _) = val
-eval val@(Bool _) = val
-eval (List [Atom "quote", val]) = val
-eval (List (Atom func : args)) = apply func $ map eval args
+eval :: LispVal -> ThrowsError LispVal
+eval val@(String _) = return val
+eval val@(Number _) = return val
+eval val@(Bool _) = return val
+eval (List [Atom "quote", val]) = return val
+eval (List (Atom func : args)) = mapM eval args >>= apply func
+eval badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
 
 -- Applies a function to the arguments.
 -- If the function is an operator from section of the function
 -- application operator, we apply it to the arguments using ($ args),
-apply :: String -> [LispVal] -> LispVal
-apply func args = maybe (Bool False) ($ args) $ lookup func primitives
+apply :: String -> [LispVal] -> ThrowsError LispVal
+apply func args = maybe (throwError $ NotFunction "Unrecognized primitive function args" func)
+                        ($ args)
+                        (lookup func primitives)
 
 -- Mapping of primitive functions in Scheme
-primitives :: [(String, [LispVal] -> LispVal)]
+primitives :: [(String, [LispVal] -> ThrowsError LispVal)]
 primitives = [("+", numericOperator (+)),
               ("-", numericOperator (-)),
               ("*", numericOperator (*)),
@@ -35,28 +42,30 @@ primitives = [("+", numericOperator (+)),
               ("mod", numericOperator mod),
               ("quotient", numericOperator quot),
               ("remainder", numericOperator rem),
-              ("symbol?", Bool . symbolp . head),
-              ("string?", Bool . stringp . head),
-              ("number?", Bool . numberp . head),
-              ("bool?", Bool . boolp . head),
-              ("list?", Bool . listp . head)]
+              ("symbol?", return . Bool . symbolp . head),
+              ("string?", return . Bool . stringp . head),
+              ("number?", return . Bool . numberp . head),
+              ("bool?", return . Bool . boolp . head),
+              ("list?", return . Bool . listp . head)]
 
 type Operand = (Integer -> Integer -> Integer)
 
 -- Applies the given operand to the unpacked list of LispVal's
-numericOperator :: Operand -> [LispVal] -> LispVal
-numericOperator op params = Number $ foldl1 op $ map unpackNumber params
+numericOperator :: Operand -> [LispVal] -> ThrowsError LispVal
+numericOperator op []            = throwError $ NumArgs 2 []
+numericOperator op singleVal@[_] = throwError $ NumArgs 2 singleVal
+numericOperator op params        = mapM unpackNumber params >>= return . Number . foldl1 op
 
 -- Unpacks a LispVal
-unpackNumber :: LispVal -> Integer
-unpackNumber (Number n) = n
+unpackNumber :: LispVal -> ThrowsError Integer
+unpackNumber (Number n) = return n
 unpackNumber (String n) = let parsed = reads n :: [(Integer, String)] in
                            if null parsed
-                              then 0
-                              else fst . head $ parsed
+                              then throwError $ TypeMismatch "number" $ String n
+                              else return . fst . head $ parsed
 
 unpackNumber (List [n]) = unpackNumber n
-unpackNumber _ = 0
+unpackNumber notNum = throwError $ TypeMismatch "number" notNum
 
 
 -- Predicates
