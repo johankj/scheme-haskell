@@ -56,7 +56,8 @@ numericOperator op []            = throwError $ NumArgs 2 []
 numericOperator op singleVal@[_] = throwError $ NumArgs 2 singleVal
 numericOperator op params        = mapM unpackNumber params >>= return . Number . foldl1 op
 
--- Unpacks a LispVal
+-- Unpack LispVal as ...
+-- ... number:
 unpackNumber :: LispVal -> ThrowsError Integer
 unpackNumber (Number n) = return n
 unpackNumber (String n) = let parsed = reads n :: [(Integer, String)] in
@@ -66,7 +67,16 @@ unpackNumber (String n) = let parsed = reads n :: [(Integer, String)] in
 
 unpackNumber (List [n]) = unpackNumber n
 unpackNumber notNum = throwError $ TypeMismatch "number" notNum
-
+-- ... string:
+unpackString :: LispVal -> ThrowsError String
+unpackString (String s) = return s
+unpackString (Number s) = return $ show s
+unpackString (Bool s)   = return $ show s
+unpackString notAString = throwError $ TypeMismatch "string" notAString
+-- ... boolean:
+unpackBoolean :: LispVal -> ThrowsError Bool
+unpackBoolean (Bool b) = return b
+unpackBoolean notABool = throwError $ TypeMismatch "boolean" notABool
 
 -- Predicates
 symbolp :: LispVal -> Bool
