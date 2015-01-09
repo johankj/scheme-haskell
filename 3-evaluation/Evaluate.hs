@@ -42,11 +42,24 @@ primitives = [("+", numericOperator (+)),
               ("mod", numericOperator mod),
               ("quotient", numericOperator quot),
               ("remainder", numericOperator rem),
-              ("symbol?", return . Bool . symbolp . head),
-              ("string?", return . Bool . stringp . head),
-              ("number?", return . Bool . numberp . head),
-              ("bool?", return . Bool . boolp . head),
-              ("list?", return . Bool . listp . head)]
+              ("symbol?", predicateOperator symbolp),
+              ("string?", predicateOperator stringp),
+              ("number?", predicateOperator numberp),
+              ("bool?", predicateOperator boolp),
+              ("list?", predicateOperator listp),
+              ("=", numberComparator (==)),
+              ("<", numberComparator (<)),
+              (">", numberComparator (>)),
+              ("/=", numberComparator (/=)),
+              (">=", numberComparator (>=)),
+              ("<=", numberComparator (<=)),
+              ("&&", booleanComparator (&&)),
+              ("||", booleanComparator (||)),
+              ("string=?", stringComparator (==)),
+              ("string<?", stringComparator (<)),
+              ("string>?", stringComparator (>)),
+              ("string<=?", stringComparator (<=)),
+              ("string>=?", stringComparator (>=))]
 
 type Operand = (Integer -> Integer -> Integer)
 
@@ -55,6 +68,21 @@ numericOperator :: Operand -> [LispVal] -> ThrowsError LispVal
 numericOperator op []            = throwError $ NumArgs 2 []
 numericOperator op singleVal@[_] = throwError $ NumArgs 2 singleVal
 numericOperator op params        = mapM unpackNumber params >>= return . Number . foldl1 op
+
+predicateOperator :: (b -> Bool) -> [b] -> ThrowsError LispVal
+predicateOperator op = return . Bool . op . head
+
+comparator :: (LispVal -> ThrowsError a) -> (a -> a -> Bool) -> [LispVal] -> ThrowsError LispVal
+comparator unpacker op args =
+    if length args /= 2
+    then throwError $ NumArgs 2 args
+    else do left <- unpacker $ args !! 0
+            right <- unpacker $ args !! 1
+            return $ Bool $ left `op` right
+
+stringComparator = comparator unpackString
+numberComparator = comparator unpackNumber
+booleanComparator = comparator unpackBoolean
 
 -- Unpack LispVal as ...
 -- ... number:
