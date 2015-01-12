@@ -138,3 +138,43 @@ listp (DottedList _ _) = True
 listp _ = False
 
 
+-- List Primitives
+
+-- car examples:
+-- (car '(a b c)) = a
+-- (car '(a)) = a
+-- (car '(a b . c)) = a
+-- (car 'a) = error – not a list
+-- (car 'a 'b) = error – car only takes one argument
+
+car :: [LispVal] -> ThrowsError LispVal
+car [List (x : xs)]          = return x
+car [DottedList (x : xs) _ ] = return x
+car [badArg]                 = throwError $ TypeMismatch "pair" badArg
+car badArgList               = throwError $ NumArgs 1 badArgList
+
+-- cdr examples:
+-- (cdr '(a b c)) = (b c)
+-- (cdr '(a b)) = (b)
+-- (cdr '(a)) = NIL
+-- (cdr '(a . b)) = b
+-- (cdr '(a b . c)) = (b . c)
+-- (cdr 'a) = error – not a list
+-- (cdr 'a 'b) = error – too many arguments
+
+cdr :: [LispVal] -> ThrowsError LispVal
+cdr [List (x : xs)]         = return $ List xs
+cdr [DottedList [_] x]      = return x
+cdr [DottedList (_ : xs) x] = return $ DottedList xs x
+cdr [badArg]                = throwError $ TypeMismatch "pair" badArg
+cdr badArgList              = throwError $ NumArgs 1 badArgList
+
+-- cons
+cons :: [LispVal] -> ThrowsError LispVal
+cons [x1, List []] = return $ List [x1]
+cons [x, List xs] = return $ List $ x : xs
+cons [x, DottedList xs xlast] = return $ DottedList (x : xs) xlast
+cons [x1, x2] = return $ DottedList [x1] x2
+cons badArgList = throwError $ NumArgs 2 badArgList
+
+
