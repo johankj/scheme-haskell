@@ -70,7 +70,13 @@ primitives = [("+", numericOperator (+)),
               ("string<?", stringComparator (<)),
               ("string>?", stringComparator (>)),
               ("string<=?", stringComparator (<=)),
-              ("string>=?", stringComparator (>=))]
+              ("string>=?", stringComparator (>=)),
+              ("car", car),
+              ("cdr", cdr),
+              ("cons", cons),
+              ("eq?", eqv),
+              ("eqv?", eqv),
+              ("equal?", equal)]
 
 type Operand = (Integer -> Integer -> Integer)
 
