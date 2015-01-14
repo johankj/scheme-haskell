@@ -1,3 +1,5 @@
+{-# LANGUAGE ExistentialQuantification #-}
+
 module Evaluate where
 
 -- ghci -i2-parsing 3-evaluation/Evaluate.hs
@@ -15,6 +17,7 @@ main = do
     evaled <- return $ liftM show $ (readExpr (head args) >>= eval)
     putStrLn $ extractValue $ trapError evaled
 
+data Unpacker = forall a. Eq a => AnyUnpacker (LispVal -> ThrowsError a)
 
 -- evaluate
 eval :: LispVal -> ThrowsError LispVal
@@ -192,4 +195,20 @@ eqv [(List arg1), (List arg2)]             =
                                Right (Bool val) -> val
 eqv [_, _]                                 = return $ Bool False
 eqv badArgList                             = throwError $ NumArgs 2 badArgList
+
+equal :: [LispVal] -> ThrowsError LispVal
+equal [arg1, arg2] = do
+    primitiveEquals <- liftM or $ mapM (unpackEquals arg1 arg2)
+                       [AnyUnpacker unpackNumber, AnyUnpacker unpackString, AnyUnpacker unpackBoolean]
+    eqvEquals <- eqv [arg1, arg2]
+    return $ Bool $ (primitiveEquals || let (Bool x) = eqvEquals in x)
+equal badArgList = throwError $ NumArgs 2 badArgList
+
+-- Equivalence Unpacker
+unpackEquals :: LispVal -> LispVal -> Unpacker -> ThrowsError Bool
+unpackEquals arg1 arg2 (AnyUnpacker unpacker) =
+    do unpacked1 <- unpacker arg1
+       unpacked2 <- unpacker arg2
+       return $ unpacked1 == unpacked2
+    `catchError` (const $ return False)
 
