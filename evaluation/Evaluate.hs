@@ -2,9 +2,9 @@
 
 module Evaluate where
 
--- ghci -i2-parsing 3-evaluation/Evaluate.hs
+-- ghci -i2-parsing evaluation/Evaluate.hs
 -- or
--- ghc -main-is Evaluate -i2-parsing --make -o eval 3-evaluation/Evaluate.hs
+-- ghc -main-is Evaluate -i2-parsing --make -o eval evaluation/Evaluate.hs
 -- ./eval "(+ 1 2 3)"
 
 import Parsing
