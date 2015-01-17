@@ -32,6 +32,16 @@ eval (List [Atom "if", pred, conseq, alt]) =
        case result of
          Bool False -> eval alt
          otherwise  -> eval conseq
+eval form@(List (Atom "cond" : [])) = throwError $ BadSpecialForm "no true clause in cond expression: " form
+eval form@(List (Atom "cond" : clauses)) =
+    case head clauses of
+      List [Atom "else", expr] -> eval expr
+      -- Piggyback on if-implementation
+      List [test, expr]        -> eval $ List [Atom "if",
+          test,
+          expr,
+          List (Atom "cond" : tail clauses)]
+      otherwise -> throwError $ BadSpecialForm "ill-formed cond expression: " form
 
 eval (List (Atom func : args)) = mapM eval args >>= apply func
 eval badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
