@@ -42,9 +42,25 @@ eval form@(List (Atom "cond" : clauses)) =
           expr,
           List (Atom "cond" : tail clauses)]
       otherwise -> throwError $ BadSpecialForm "ill-formed cond expression: " form
-
+eval (List (Atom "case" : (key : xs))) = evalCase key xs
 eval (List (Atom func : args)) = mapM eval args >>= apply func
 eval badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
+
+-- Evaluate case
+evalCaseClause :: LispVal -> LispVal -> LispVal -> ThrowsError LispVal -> ThrowsError LispVal
+evalCaseClause key val conseq alt = do
+    result <- eqv [key, val]
+    case result of
+      Bool True  -> eval conseq
+      Bool False -> alt
+      otherwise  -> throwError $ TypeMismatch "boolean" result
+
+evalCase :: LispVal -> [LispVal] -> ThrowsError LispVal
+evalCase _ [List [Atom "else", conseq]] = eval conseq
+evalCase key [List [val, conseq]] = evalCaseClause key val conseq (return $ List [])
+evalCase key (List [val, conseq] : xs) = evalCaseClause key val conseq (evalCase key xs)
+evalCase _ badArgList = throwError $ BadSpecialForm "invalid cond clause" (badArgList !! 0)
+
 
 -- Applies a function to the arguments.
 -- If the function is an operator from section of the function
