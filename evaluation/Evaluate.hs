@@ -32,19 +32,26 @@ eval (List [Atom "if", pred, conseq, alt]) =
        case result of
          Bool False -> eval alt
          otherwise  -> eval conseq
-eval form@(List (Atom "cond" : [])) = throwError $ BadSpecialForm "no true clause in cond expression: " form
-eval form@(List (Atom "cond" : clauses)) =
-    case head clauses of
-      List [Atom "else", expr] -> eval expr
-      -- Piggyback on if-implementation
-      List [test, expr]        -> eval $ List [Atom "if",
-          test,
-          expr,
-          List (Atom "cond" : tail clauses)]
-      otherwise -> throwError $ BadSpecialForm "ill-formed cond expression: " form
+eval (List (Atom "cond" : xs)) = evalCond xs
 eval (List (Atom "case" : (key : xs))) = evalCase key xs
 eval (List (Atom func : args)) = mapM eval args >>= apply func
 eval badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
+
+-- Evaluate cond
+evalCondClause :: LispVal -> LispVal -> ThrowsError LispVal -> ThrowsError LispVal
+evalCondClause pred conseq alt = do
+    result <- eval pred
+    case result of
+      Bool True  -> eval conseq
+      Bool False -> alt
+      otherwise -> throwError $ TypeMismatch "boolean" result
+
+evalCond :: [LispVal] -> ThrowsError LispVal
+evalCond [List [Atom "else", conseq]] = eval conseq
+evalCond [List [pred, conseq]] = evalCondClause pred conseq (return $ List [])
+evalCond (List [pred, conseq] : xs) = evalCondClause pred conseq (evalCond xs)
+evalCond [] = throwError $ BadSpecialForm "no true clause in cond expression" (List [Atom "cond"])
+evalCond badArgList = throwError $ BadSpecialForm "illegal clause in cond expression" $ head badArgList
 
 -- Evaluate case
 evalCaseClause :: LispVal -> LispVal -> LispVal -> ThrowsError LispVal -> ThrowsError LispVal
