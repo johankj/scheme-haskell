@@ -22,7 +22,18 @@ data LispVal = Atom String
              | String String
              | Bool Bool
              | Character Char
-             deriving(Show)
+
+instance Show LispVal where show = showVal
+
+showVal :: LispVal -> String
+showVal (String s) = "\"" ++ s ++ "\""
+showVal (Atom name) = name
+showVal (Number n) = show n
+showVal (Bool True) = "#t"
+showVal (Bool False) = "#f"
+showVal (List xs) = "(" ++ unwordsList xs ++ ")"
+showVal (DottedList head tail) = "(" ++ unwordsList head ++ " . " ++ showVal tail ++ ")"
+showVal (Character c) = ['\'', c, '\'']
 
 -- ErrorTypes
 data LispError = NumArgs Integer [LispVal]
@@ -33,6 +44,8 @@ data LispError = NumArgs Integer [LispVal]
                | UnboundVar String String
                | Default String
 
+instance Show LispError where show = showError
+
 showError :: LispError -> String
 showError (UnboundVar message varname)  = message ++ ": " ++ varname
 showError (BadSpecialForm message form) = message ++ ": " ++ show form
@@ -42,7 +55,6 @@ showError (NumArgs expected found)      = "Expected " ++ show expected
 showError (TypeMismatch expected found) = "Invalid type: expected " ++ expected
                                        ++ ", found " ++ show found
 showError (Parser parseErr)             = "Parse error at " ++ show parseErr
-instance Show LispError where show = showError
 
 -- Make LispError instance of Error
 -- so it works with GHC's built-in error handling functions
@@ -61,7 +73,8 @@ trapError action = catchError action (return . show)
 extractValue :: ThrowsError a -> a
 extractValue (Right val) = val
 
-
+unwordsList :: [LispVal] -> String
+unwordsList = unwords . map showVal
 
 -- A parser for whitespace
 -- Skips 1 or more spaces
