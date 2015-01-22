@@ -1,74 +1,16 @@
-module Parsing where
+module Parse where
+
+import LispVal
+import LispError
 
 import Data.Char
 import Data.Ratio (Rational (..), (%))
 import Data.Complex (Complex (..))
 import Control.Monad
-import Control.Monad.Error
+import Control.Monad.Error (throwError)
 import System.Environment
 import Numeric (readInt, readHex, readOct)
 import Text.ParserCombinators.Parsec hiding (spaces)
-
--- The data in the program
--- It can be any Lisp value
-data LispVal = Atom String
-             | List [LispVal]
-             | DottedList [LispVal] LispVal
-             | Vector (Int, [LispVal])
-             | Number Integer
-             | Ratio Rational
-             | Complex (Complex Double)
-             | Float Double
-             | String String
-             | Bool Bool
-             | Character Char
-
-instance Show LispVal where show = showVal
-
-showVal :: LispVal -> String
-showVal (String s) = "\"" ++ s ++ "\""
-showVal (Atom name) = name
-showVal (Number n) = show n
-showVal (Bool True) = "#t"
-showVal (Bool False) = "#f"
-showVal (List xs) = "(" ++ unwordsList xs ++ ")"
-showVal (DottedList head tail) = "(" ++ unwordsList head ++ " . " ++ showVal tail ++ ")"
-showVal (Character c) = ['\'', c, '\'']
-
--- ErrorTypes
-data LispError = NumArgs Integer [LispVal]
-               | TypeMismatch String LispVal
-               | Parser ParseError
-               | BadSpecialForm String LispVal
-               | NotFunction String String
-               | UnboundVar String String
-               | Default String
-
-instance Show LispError where show = showError
-
-showError :: LispError -> String
-showError (UnboundVar message varname)  = message ++ ": " ++ varname
-showError (BadSpecialForm message form) = message ++ ": " ++ show form
-showError (NotFunction message func)    = message ++ ": " ++ show func
-showError (NumArgs expected found)      = "Expected " ++ show expected
-                                       ++ " args; found values " ++ show found
-showError (TypeMismatch expected found) = "Invalid type: expected " ++ expected
-                                       ++ ", found " ++ show found
-showError (Parser parseErr)             = "Parse error at " ++ show parseErr
-
--- Make LispError instance of Error
--- so it works with GHC's built-in error handling functions
-instance Error LispError where
-    noMsg = Default "An error has occurred"
-    strMsg = Default
-
--- Curried TypeAlias
--- e.g. ThrowsError LispVal or ThrowsError String
-type ThrowsError = Either LispError
-
--- We'll be converting all of our errors to their string representations
--- and returning that as a normal value.
-trapError action = catchError action (return . show)
 
 extractValue :: ThrowsError a -> a
 extractValue (Right val) = val
