@@ -3,59 +3,64 @@ module Evaluate where
 import LispVal
 import LispError
 import Primitives
+import Environment
 
 import System.Environment
 import Control.Monad.Error
 import System.IO
 
 -- evaluate
-eval :: LispVal -> ThrowsError LispVal
-eval val@(String _) = return val
-eval val@(Number _) = return val
-eval val@(Bool _) = return val
+eval :: Env -> LispVal -> IOThrowsError LispVal
+eval env val@(String _) = return val
+eval env val@(Number _) = return val
+eval env val@(Bool _) = return val
 -- Quotes
-eval (List [Atom "quote", val]) = return val
+eval env (List [Atom "quote", val]) = return val
 -- Conditionals
-eval (List [Atom "if", pred, conseq, alt]) =
-    do result <- eval pred
+eval env (List [Atom "if", pred, conseq, alt]) =
+    do result <- eval env pred
        case result of
-         Bool False -> eval alt
-         otherwise  -> eval conseq
-eval (List (Atom "cond" : xs)) = evalCond xs
-eval (List (Atom "case" : (key : xs))) = evalCase key xs
-eval (List (Atom func : args)) = mapM eval args >>= apply func
-eval badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
+         Bool False -> eval env alt
+         otherwise  -> eval env conseq
+eval env (List (Atom "cond" : xs)) = evalCond env xs
+eval env (List (Atom "case" : (key : xs))) = evalCase env key xs
+eval env (List [Atom "set!", Atom var, form]) =
+    eval env form >>= setVar env var
+eval env (List [Atom "define", Atom var, form]) =
+    eval env form >>= defineVar env var
+eval env (List (Atom func : args)) = mapM (eval env) args >>= liftThrows . apply func
+eval env badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
 
 -- Evaluate cond
-evalCondClause :: LispVal -> LispVal -> ThrowsError LispVal -> ThrowsError LispVal
-evalCondClause pred conseq alt = do
-    result <- eval pred
+evalCondClause :: Env -> LispVal -> LispVal -> IOThrowsError LispVal -> IOThrowsError LispVal
+evalCondClause env pred conseq alt = do
+    result <- eval env pred
     case result of
-      Bool True  -> eval conseq
+      Bool True  -> eval env conseq
       Bool False -> alt
       otherwise -> throwError $ TypeMismatch "boolean" result
 
-evalCond :: [LispVal] -> ThrowsError LispVal
-evalCond [List [Atom "else", conseq]] = eval conseq
-evalCond [List [pred, conseq]] = evalCondClause pred conseq (return $ List [])
-evalCond (List [pred, conseq] : xs) = evalCondClause pred conseq (evalCond xs)
-evalCond [] = throwError $ BadSpecialForm "no true clause in cond expression" (List [Atom "cond"])
-evalCond badArgList = throwError $ BadSpecialForm "illegal clause in cond expression" $ head badArgList
+evalCond :: Env -> [LispVal] -> IOThrowsError LispVal
+evalCond env [List [Atom "else", conseq]] = eval env conseq
+evalCond env [List [pred, conseq]] = evalCondClause env pred conseq (return $ List [])
+evalCond env (List [pred, conseq] : xs) = evalCondClause env pred conseq (evalCond env xs)
+evalCond env [] = throwError $ BadSpecialForm "no true clause in cond expression" (List [Atom "cond"])
+evalCond env badArgList = throwError $ BadSpecialForm "illegal clause in cond expression" $ head badArgList
 
 -- Evaluate case
-evalCaseClause :: LispVal -> LispVal -> LispVal -> ThrowsError LispVal -> ThrowsError LispVal
-evalCaseClause key val conseq alt = do
-    result <- eqv [key, val]
+evalCaseClause :: Env -> LispVal -> LispVal -> LispVal -> IOThrowsError LispVal -> IOThrowsError LispVal
+evalCaseClause env key val conseq alt = do
+    result <- liftThrows $ eqv [key, val]
     case result of
-      Bool True  -> eval conseq
+      Bool True  -> eval env conseq
       Bool False -> alt
       otherwise  -> throwError $ TypeMismatch "boolean" result
 
-evalCase :: LispVal -> [LispVal] -> ThrowsError LispVal
-evalCase _ [List [Atom "else", conseq]] = eval conseq
-evalCase key [List [val, conseq]] = evalCaseClause key val conseq (return $ List [])
-evalCase key (List [val, conseq] : xs) = evalCaseClause key val conseq (evalCase key xs)
-evalCase _ badArgList = throwError $ BadSpecialForm "invalid cond clause" (badArgList !! 0)
+evalCase :: Env -> LispVal -> [LispVal] -> IOThrowsError LispVal
+evalCase env _ [List [Atom "else", conseq]] = eval env conseq
+evalCase env key [List [val, conseq]] = evalCaseClause env key val conseq (return $ List [])
+evalCase env key (List [val, conseq] : xs) = evalCaseClause env key val conseq (evalCase env key xs)
+evalCase env _ badArgList = throwError $ BadSpecialForm "invalid cond clause" (badArgList !! 0)
 
 
 -- Applies a function to the arguments.
