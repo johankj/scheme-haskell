@@ -14,6 +14,7 @@ eval :: Env -> LispVal -> IOThrowsError LispVal
 eval env val@(String _) = return val
 eval env val@(Number _) = return val
 eval env val@(Bool _) = return val
+eval env (Atom id) = getVar env id
 -- Quotes
 eval env (List [Atom "quote", val]) = return val
 -- Conditionals
