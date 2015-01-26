@@ -12,9 +12,6 @@ import System.Environment
 import Numeric (readInt, readHex, readOct)
 import Text.ParserCombinators.Parsec hiding (spaces)
 
-extractValue :: ThrowsError a -> a
-extractValue (Right val) = val
-
 unwordsList :: [LispVal] -> String
 unwordsList = unwords . map showVal
 
@@ -205,7 +202,7 @@ parseExpr = parseAtom
          <|> parseUnQuote
          <|> parseVector
 
-readExpr :: String -> ThrowsError LispVal
+readExpr :: String -> ThrowsLispError LispVal
 readExpr input =
     case parse parseExpr "lisp" input of
       Left err -> throwError $ Parser err

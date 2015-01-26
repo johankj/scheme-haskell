@@ -2,15 +2,14 @@ module Main where
 
 -- ghc --make -o eval Main.hs
 
-import Environment
 import Evaluate
+import LispVal
 import LispError
 import Parse
 
 import System.Environment
 import Control.Monad.Error
 import System.IO
-
 
 main :: IO ()
 main = do
@@ -27,10 +26,10 @@ flushStr str = putStr str >> hFlush stdout
 readPrompt :: String -> IO String
 readPrompt prompt = flushStr prompt >> getLine
 
-evalString :: Env -> String -> IO String
+evalString :: LispEnv -> String -> IO String
 evalString env expr = runIOThrows $ liftM show $ (liftThrows $ readExpr expr) >>= eval env
 
-evalAndPrint :: Env -> String -> IO ()
+evalAndPrint :: LispEnv -> String -> IO ()
 evalAndPrint env expr = evalString env expr >>= putStrLn
 
 until_ :: Monad m => (a -> Bool) -> m a -> (a -> m ()) -> m ()
@@ -41,9 +40,9 @@ until_ pred prompt action = do
       else action result >> until_ pred prompt action
 
 runOne :: String -> IO ()
-runOne expr = nullEnv >>= flip evalAndPrint expr
+runOne expr = primitiveBindings >>= flip evalAndPrint expr
 
 runRepl :: IO ()
-runRepl = nullEnv >>= until_ (== "quit") (readPrompt "Lisp>>> ") . evalAndPrint
+runRepl = primitiveBindings >>= until_ (== "quit") (readPrompt "Lisp>>> ") . evalAndPrint
 
 

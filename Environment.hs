@@ -1,36 +1,23 @@
 module Environment where
 
-import LispVal
 import LispError
-import Parse
 
 import Control.Monad (liftM)
 import Control.Monad.Error (ErrorT, throwError, runErrorT)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef
 
-type Env = IORef [(String, IORef LispVal)]
+type Environment a = IORef [(String, IORef a)]
 
-nullEnv :: IO Env
+nullEnv :: IO (Environment a)
 nullEnv = newIORef []
 
--- Some monadic error-handling
-type IOThrowsError = ErrorT LispError IO
-
-liftThrows :: ThrowsError a -> IOThrowsError a
-liftThrows (Left err) = throwError err
-liftThrows (Right val) = return val
-
-runIOThrows :: IOThrowsError String -> IO String
-runIOThrows action = runErrorT (trapError action) >>= return . extractValue
---
-
-isBound :: Env -> String -> IO Bool
+isBound :: Environment a -> String -> IO Bool
 isBound envRef var = readIORef envRef >>= return . lookupBool var
     where lookupBool var = maybe False (const True) . lookup var
 
 -- Get's an already bound variable
-getVar :: Env -> String -> IOThrowsError LispVal
+getVar :: Environment a -> String -> IOThrowsError a a
 getVar envRef var = do
     env <- liftIO $ readIORef envRef
     maybe (throwError $ UnboundVar "Getting an unbound variable" var)
@@ -38,7 +25,7 @@ getVar envRef var = do
           (lookup var env)
 
 -- Overrides an already bound variable and returns the new value
-setVar :: Env -> String -> LispVal -> IOThrowsError LispVal
+setVar :: Environment a -> String -> a -> IOThrowsError a a
 setVar envRef var value = do
     env <- liftIO $ readIORef envRef
     maybe (throwError $ UnboundVar "Setting an unbound variable" var)
@@ -47,7 +34,7 @@ setVar envRef var value = do
     return value
 
 -- Creates a new variable or overrides an already bound variable
-defineVar :: Env -> String -> LispVal -> IOThrowsError LispVal
+defineVar :: Environment a -> String -> a -> IOThrowsError a a
 defineVar envRef var value = do
     alreadyDefined <- liftIO $ isBound envRef var
     if alreadyDefined
@@ -58,7 +45,7 @@ defineVar envRef var value = do
             writeIORef envRef ((var, valueRef) : env)
             return value
 
-bindVars :: Env -> [(String, LispVal)] -> IO Env
+bindVars :: Environment a -> [(String, a)] -> IO (Environment a)
 bindVars envRef bindings = readIORef envRef >>= extendEnv bindings >>= newIORef
     where extendEnv bindings env = liftM (++ env) (mapM addBinding bindings)
           addBinding (var, value) = do ref <- newIORef value
