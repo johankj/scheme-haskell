@@ -8,6 +8,7 @@ import Data.Char
 import Data.Ratio (Rational (..), (%))
 import Data.Complex (Complex (..))
 import Data.IORef
+import System.IO (Handle)
 
 type LispEnv = Environment LispVal
 
@@ -30,6 +31,8 @@ data LispVal = Atom String
              | PrimitiveFunc ([LispVal] -> ThrowsLispError LispVal)
              | Func { params :: [String], vararg :: (Maybe String),
                       body :: [LispVal], closure :: LispEnv }
+             | IOFunc ([LispVal] -> IOThrowsLispError LispVal)
+             | Port Handle -- port/handle is basically a file descriptor
 
 instance Show LispVal where show = showVal
 
@@ -48,5 +51,6 @@ showVal (Func { params = args, vararg = vararg, body = body, closure = env }) =
       (case vararg of
         Nothing -> ""
         Just arg -> " . " ++ arg) ++ ") ...)"
-
+showVal (IOFunc _) = "<IO primitive>"
+showVal (Port _) = "<IO port>"
 

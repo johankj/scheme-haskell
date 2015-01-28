@@ -6,6 +6,7 @@ import Evaluate
 import LispVal
 import LispError
 import Parse
+import IOHelpers
 
 import System.Environment
 import Control.Monad.Error

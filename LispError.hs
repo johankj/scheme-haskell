@@ -40,7 +40,7 @@ type IOThrowsError a b = ErrorT (LispError a) IO b
 trapError action = catchError action (return . show)
 
 -- Some monadic error-handling
-liftThrows :: ThrowsError a a -> IOThrowsError a a
+liftThrows :: ThrowsError a b -> IOThrowsError a b
 liftThrows (Left err) = throwError err
 liftThrows (Right val) = return val
 

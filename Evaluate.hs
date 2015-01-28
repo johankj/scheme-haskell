@@ -3,6 +3,7 @@ module Evaluate where
 import LispVal
 import LispError
 import Primitives
+import IOPrimitives
 import Environment
 
 import System.Environment
@@ -105,7 +106,11 @@ apply (Func params vararg body closure) args =
             Nothing -> return env
 
 primitiveBindings :: IO LispEnv
-primitiveBindings = nullEnv >>= (flip bindVars $ map makePrimitiveFunc primitives)
-    where makePrimitiveFunc (var, func) = (var, PrimitiveFunc func)
+primitiveBindings = nullEnv >>= (flip bindVars $ allFuncs)
+    where
+      allFuncs = primFuncs ++ ioFuncs
+      primFuncs = map (makeFunc PrimitiveFunc) primitives
+      ioFuncs = map (makeFunc IOFunc) ioPrimitives
+      makeFunc constructor (var, func) = (var, constructor func)
 
 
