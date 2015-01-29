@@ -43,6 +43,9 @@ eval env (List (Atom "lambda" : DottedList params varargs : body)) =
     makeVarArgs varargs env params body
 eval env (List (Atom "lambda" : varargs@(Atom _) : body)) =
     makeVarArgs varargs env [] body
+-- Implement load to extend the environment
+eval env (List [Atom "load", String filename]) = 
+     load filename >>= liftM last . mapM (eval env)
 -- Evaluate functions
 eval env (List (function : args)) = do
     func <- eval env function

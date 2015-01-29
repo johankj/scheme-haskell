@@ -191,5 +191,3 @@ unpackEquals arg1 arg2 (AnyUnpacker unpacker) =
        return $ unpacked1 == unpacked2
     `catchError` (const $ return False)
 
-
-
